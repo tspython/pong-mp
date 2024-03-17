@@ -15,12 +15,16 @@ float prevPlayer2PaddleY = 0.0f;
 bool isServer;
 int clientSocket;
 int serverSocket;
+bool initial_run = true;
 
-int init(bool is_server, int sSocket, int cSocket) {
+bool init(bool is_server, int sSocket, int cSocket) {
 	GLFWwindow* window;
 	isServer = is_server;
 	serverSocket = sSocket;
 	clientSocket = cSocket;
+	std::cout << serverSocket << std::endl;	
+	std::cout << clientSocket << std::endl;
+
 
 	if(!glfwInit()) return -1;
 
@@ -33,7 +37,6 @@ int init(bool is_server, int sSocket, int cSocket) {
 	if (!window) {
 		std::cout << "Failed to create GLFW window" << std::endl;
 		glfwTerminate();
-		return -1;
 	}
 		
 	glfwMakeContextCurrent(window);
@@ -54,22 +57,27 @@ int init(bool is_server, int sSocket, int cSocket) {
 	initGameState(&gameState);
 
 	while(!glfwWindowShouldClose(window)) {
+		std::cout << "reached game loop" << std::endl;
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		float currentFrame = glfwGetTime();
 		float deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 		
-		processInput(window, gameState, deltaTime);
-		updateGameState(gameState, deltaTime);
+		if(!initial_run || !isServer) {
+			processInput(window, gameState, deltaTime);
+			updateGameState(gameState, deltaTime);
+		}
 
 		render(gameState);
 
 		glfwSwapBuffers(window);
 
 		glfwPollEvents();
+		initial_run = false;
 	}
+	std::cout << "reached end ofgame loop" << std::endl;
 	glfwTerminate();
-	return 0;
+	return true;
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -173,8 +181,8 @@ void processInput(GLFWwindow* window, GameState& gameState, float deltaTime) {
 		PaddleMovePacket paddleMovePacket;
 		paddleMovePacket.deltaY = gameState.player1Paddle.y - prevPlayer1PaddleY;
 		prevPlayer1PaddleY = newPlayer1PaddleY;
-
-		sendPacket(clientSocket, &paddleMovePacket, sizeof(paddleMovePacket));
+		
+		sendPaddleMovePacket(clientSocket, paddleMovePacket);
 	}
 	if(!isServer) {
 		// Player 2 Input (ARROWS)
@@ -189,8 +197,8 @@ void processInput(GLFWwindow* window, GameState& gameState, float deltaTime) {
 		PaddleMovePacket paddleMovePacket;
 		paddleMovePacket.deltaY = gameState.player2Paddle.y - prevPlayer2PaddleY;
 		prevPlayer2PaddleY = newPlayer2PaddleY;
-
-		sendPacket(clientSocket, &paddleMovePacket, sizeof(paddleMovePacket));
+		
+		sendPaddleMovePacket(serverSocket, paddleMovePacket);
 	}
 
 	if (gameState.player1Paddle.y < 0)
@@ -224,13 +232,12 @@ void updateGameState(GameState& gameState, float deltaTime) {
 
         // Receive player 2 paddle movement from the client
         PaddleMovePacket player2Move;
-        uint32_t bytesReceived;
-        if (receivePacket(clientSocket, &player2Move, sizeof(player2Move), bytesReceived)) {
-            if (bytesReceived == sizeof(player2Move)) {
-                // Update player 2 paddle position based on received movement
-                gameState.player2Paddle.y += player2Move.deltaY;
-            }
-        }
+        if (recvPaddleMovePacket(clientSocket, player2Move)) {
+		gameState.player2Paddle.y += player2Move.deltaY;
+	} 
+	else {
+		std::cerr <<  "Error receiving paddle movement from client" << std::endl;
+	}
 
         if (gameState.gameBall.x + gameState.gameBall.radius >= gameState.player2Paddle.x &&
             gameState.gameBall.x <= gameState.player2Paddle.x + gameState.player2Paddle.width &&
@@ -257,7 +264,11 @@ void updateGameState(GameState& gameState, float deltaTime) {
         if (recvBallPositionPacket(serverSocket, ballPositionPacket)) {
 		gameState.gameBall.x = ballPositionPacket.x;
 		gameState.gameBall.y = ballPositionPacket.y;
-        }
+        } 
+	else {
+		std::cerr <<  "Error receiving ball position from server" << std::endl;
+
+	}
     }
 }
 

@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <iostream> // For error logging
 
 void serialize(const PaddleMovePacket& packet, char* buffer) {
     std::memcpy(buffer, &packet, sizeof(PaddleMovePacket));
@@ -24,7 +25,10 @@ bool sendPacket(int socket, const void* packet, uint32_t packetSize) {
     uint32_t bytesSent = 0;
     while (bytesSent < packetSize) {
         int result = send(socket, reinterpret_cast<const char*>(packet) + bytesSent, packetSize - bytesSent, 0);
-        if (result == -1) return false;
+        if (result == -1) {
+            std::cerr << "Error sending packet: " << strerror(errno) << std::endl;
+            return false;
+        }
         bytesSent += static_cast<uint32_t>(result);
     }
     return true;
@@ -35,9 +39,10 @@ bool receivePacket(int socket, void* buffer, uint32_t bufferSize, uint32_t& byte
     while (bytesRecv < bufferSize) {
         int result = recv(socket, reinterpret_cast<char*>(buffer) + bytesRecv, bufferSize - bytesRecv, 0);
         if (result == -1) {
+            std::cerr << "Error receiving packet: " << strerror(errno) << std::endl;
             return false;
         } else if (result == 0) {
-            return true; // we have closed our connection
+            return true; // Connection closed
         }
 
         bytesRecv += static_cast<uint32_t>(result);
@@ -45,7 +50,7 @@ bool receivePacket(int socket, void* buffer, uint32_t bufferSize, uint32_t& byte
     return true;
 }
 
-void sendPaddleMovePacket(int socket, const PaddleMovePacket& packet) {
+void sendPaddleMovePacket(int socket, PaddleMovePacket& packet) {
     char buffer[sizeof(PaddleMovePacket)];
     serialize(packet, buffer);
     sendPacket(socket, buffer, sizeof(PaddleMovePacket));
@@ -63,7 +68,7 @@ bool recvPaddleMovePacket(int socket, PaddleMovePacket& packet) {
     return false;
 }
 
-void sendBallPositionPacket(int socket, const BallPositionPacket& packet) {
+void sendBallPositionPacket(int socket, BallPositionPacket& packet) {
     char buffer[sizeof(BallPositionPacket)];
     serialize(packet, buffer);
     sendPacket(socket, buffer, sizeof(BallPositionPacket));

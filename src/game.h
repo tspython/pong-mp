@@ -36,7 +36,7 @@ struct GameState {
 void drawPaddle(const Paddle& paddle, const glm::mat4& view, const glm::mat4& projection);
 void drawBall(const Ball& ball, const glm::mat4& view, const glm::mat4& projection);
 void drawScore(float x, float y, unsigned int score);
-int init(bool is_server, int sSocket, int cSocket);
+bool init(bool is_server, int sSocket, int cSocket);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window, GameState& gameState, float deltaTime);
 void updateGameState(GameState& gameState, float deltaTime);

@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/select.h>
 #include "server.h"
 
 bool Server::start(int port) {
@@ -35,15 +36,38 @@ void Server::stop() {
 }
 
 int Server::waitForClient() {
-    sockaddr_in clientAddr;
-    socklen_t clientAddrSize = sizeof(clientAddr);
-    int clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrSize);
-    if (clientSocket == -1) {
-        std::cerr << "Error: Failed to accept client connection\n";
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(serverSocket, &readfds);
+
+    // Timeout for select in seconds
+    struct timeval timeout;
+    timeout.tv_sec = 10;  // Adjust this value as needed
+    timeout.tv_usec = 0;
+
+    // Wait for activity on the server socket
+    int activity = select(serverSocket + 1, &readfds, NULL, NULL, &timeout);
+    if (activity == -1) {
+        std::cerr << "Error: select() failed\n";
+        return -1;
+    } else if (activity == 0) {
+        std::cerr << "Error: select() timed out\n";
         return -1;
     }
 
-    std::cout << "Client connected\n";
-    return clientSocket;
-}
+    // Check if there is incoming client connection
+    if (FD_ISSET(serverSocket, &readfds)) {
+        sockaddr_in clientAddr;
+        socklen_t clientAddrSize = sizeof(clientAddr);
+        int clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrSize);
+        if (clientSocket == -1) {
+            std::cerr << "Error: Failed to accept client connection\n";
+            return -1;
+        }
 
+        std::cout << "Client connected\n";
+        return clientSocket;
+    }
+
+    return -1; // Should not reach here under normal circumstances
+}

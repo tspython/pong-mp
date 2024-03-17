@@ -14,9 +14,9 @@ struct BallPositionPacket {
 
 bool sendPacket(int socket, const void* packet, uint32_t packetSize);
 bool receivePacket(int socket, void* buffer, uint32_t bufferSize, uint32_t& bytesRecv);
-void sendPaddleMovePacket(int socket,  const PaddleMovePacket& packet);
+void sendPaddleMovePacket(int socket,  PaddleMovePacket& packet);
 bool recvPaddleMovePacket(int socket, PaddleMovePacket& packet);
-void sendBallPositionPacket(int socket, const BallPositionPacket& packet);
+void sendBallPositionPacket(int socket, BallPositionPacket& packet);
 bool recvBallPositionPacket(int socket, BallPositionPacket& packet);
 
 void serialize(const PaddleMovePacket& packet, char* buffer);

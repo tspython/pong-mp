@@ -9,23 +9,23 @@ std::pair<int, int> initialize(const std::string& mode) {
     int clientSocket = -1;
 
     if (mode == "server") {
-        Server server;
-        if (!server.start(8080)) { 
+        Server *server = new Server();
+        if (!server -> start(8080)) { 
             std::cerr << "Failed to start server\n";
             exit(-1);
         }
-        serverSocket = server.getSocket();
-        clientSocket = server.waitForClient();
+        serverSocket = server -> getSocket();
+        clientSocket = server -> waitForClient();
     } 
     else if (mode == "client") {
-        Client client;
-        if (!client.connect("127.0.0.1", 8080)) {
+        Client *client = new Client();
+        if (!client->connect("127.0.0.1", 8080)) {
             std::cerr << "Failed to connect to server\n";
-            exit(-1);
+            delete client;             exit(-1);
         }
-        clientSocket = client.getSocket();
-        // Set the server socket for the client
-        client.setServerSocket(serverSocket); // Assuming serverSocket is available in the scope
+        clientSocket = client->getSocket();
+        serverSocket = client->getServerSocket();
+
     } 
     else {
         std::cerr << "Invalid mode. Please specify either 'server' or 'client'\n";
@@ -52,7 +52,15 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    init(mode == "server", serverSocket, clientSocket);
+    if (mode == "server") {
+        init(true, serverSocket, clientSocket);
+    } 
+    else if (mode == "client") {
+        init(false, serverSocket, clientSocket);
+    }
+
+    // Client remains persistent until explicitly disconnected or program terminates
+    // No need to delete the dynamically allocated client object
 
     return 0;
 }
