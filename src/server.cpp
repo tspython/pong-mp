@@ -22,7 +22,7 @@ bool Server::start(int port) {
     }
 
     if (listen(serverSocket, 5) == -1) {        
-	std::cerr << "Error: Failed to listen on socket\n";
+        std::cerr << "Error: Failed to listen on socket\n";
         return false;
     }
 
@@ -33,3 +33,17 @@ bool Server::start(int port) {
 void Server::stop() {
     close(serverSocket);
 }
+
+int Server::waitForClient() {
+    sockaddr_in clientAddr;
+    socklen_t clientAddrSize = sizeof(clientAddr);
+    int clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrSize);
+    if (clientSocket == -1) {
+        std::cerr << "Error: Failed to accept client connection\n";
+        return -1;
+    }
+
+    std::cout << "Client connected\n";
+    return clientSocket;
+}
+

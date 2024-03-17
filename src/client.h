@@ -1,11 +1,18 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-struct Client {
-	int clientSocket;
-	bool connect(const char* ip, int port);
-	void disconnect();
+class Client {
+private:
+    int clientSocket;
+    int serverSocket; 
+public:
+    Client();
+    ~Client();
+    bool connect(const char* ip, int port);
+    void disconnect();
+    void setServerSocket(int socket);     
+	int getSocket() const;
 };
 
-#endif // CLIENT_H
+#endif
 

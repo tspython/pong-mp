@@ -5,6 +5,8 @@ struct Server {
 	int serverSocket;
 	bool start(int port);
 	void stop();
+	int waitForClient();
+	int getSocket() { return serverSocket; }
 };
 
 

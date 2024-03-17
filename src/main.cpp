@@ -4,6 +4,37 @@
 #include "server.h"
 #include "client.h"
 
+std::pair<int, int> initialize(const std::string& mode) {
+    int serverSocket = -1;
+    int clientSocket = -1;
+
+    if (mode == "server") {
+        Server server;
+        if (!server.start(8080)) { 
+            std::cerr << "Failed to start server\n";
+            exit(-1);
+        }
+        serverSocket = server.getSocket();
+        clientSocket = server.waitForClient();
+    } 
+    else if (mode == "client") {
+        Client client;
+        if (!client.connect("127.0.0.1", 8080)) {
+            std::cerr << "Failed to connect to server\n";
+            exit(-1);
+        }
+        clientSocket = client.getSocket();
+        // Set the server socket for the client
+        client.setServerSocket(serverSocket); // Assuming serverSocket is available in the scope
+    } 
+    else {
+        std::cerr << "Invalid mode. Please specify either 'server' or 'client'\n";
+        exit(-1);
+    }
+
+    return std::make_pair(serverSocket, clientSocket);
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <mode>\n";
@@ -12,30 +43,17 @@ int main(int argc, char* argv[]) {
 
     std::string mode = argv[1];
 
-    if (mode == "server") {
-        Server server;
-        if (!server.start(8080)) {
-            std::cerr << "Failed to start server\n";
-            return -1;
-        }
-        init();         
-	server.stop();
-    } 
-    else if (mode == "client") {
-        Client client;
-        if (!client.connect("127.0.0.1", 8080)) {
-            std::cerr << "Failed to connect to server\n";
-            return -1;
-        }
-        init();         
-	client.disconnect();
-    } 
-    else {
-        std::cerr << "Invalid mode. Please specify either 'server' or 'client'\n";
+    auto sockets = initialize(mode);
+    int serverSocket = sockets.first;
+    int clientSocket = sockets.second;
+
+    if (serverSocket == -1 || clientSocket == -1) {
+        std::cerr << "Failed to initialize sockets\n";
         return -1;
     }
 
+    init(mode == "server", serverSocket, clientSocket);
+
     return 0;
 }
-
 

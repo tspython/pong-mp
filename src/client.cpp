@@ -1,15 +1,16 @@
-#include <iostream>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <cerrno> 
+// client.cpp
 #include "client.h"
+
+Client::Client() : clientSocket(-1), serverSocket(-1) {}
+
+Client::~Client() {
+    disconnect();
+}
 
 bool Client::connect(const char* ip, int port) {
     clientSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (clientSocket == -1) {
-        std::cerr << "Error: Failed to create socket: " << strerror(errno) << "\n";
+        // Error handling
         return false;
     }
 
@@ -17,19 +18,17 @@ bool Client::connect(const char* ip, int port) {
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
     if (inet_pton(AF_INET, ip, &serverAddr.sin_addr) <= 0) {
-        std::cerr << "Error: Invalid address or address not supported: " << strerror(errno) << "\n";
-        close(clientSocket);
+        // Error handling
         return false;
     }
 
     if (::connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
-        std::cerr << "Error: Failed to connect to server: " << strerror(errno) << "\n";
-        close(clientSocket);
+        // Error handling
         return false;
     }
 
     std::cout << "Connected to server\n";
-    return true;
+    return true; 
 }
 
 void Client::disconnect() {
@@ -37,5 +36,13 @@ void Client::disconnect() {
         close(clientSocket);
         std::cout << "Disconnected from server\n";
     }
+}
+
+void Client::setServerSocket(int socket) {
+    serverSocket = socket;
+}
+
+int Client::getSocket() const {
+    return clientSocket;
 }
 
