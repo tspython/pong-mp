@@ -50,7 +50,7 @@ int init() {
 		lastFrame = currentFrame;
 		
 		processInput(window, gameState, deltaTime);
-		//updateGameState(gameState, deltaTime);
+		updateGameState(gameState, deltaTime);
 
 		render(gameState);
 
@@ -173,7 +173,40 @@ void processInput(GLFWwindow* window, GameState& gameState, float deltaTime) {
 		gameState.player2Paddle.y = WINDOW_HEIGHT - gameState.player2Paddle.height;
 }
 
-void updateGameState(GameState& gameState, float deltaTime) {}
+void updateGameState(GameState& gameState, float deltaTime) {
+    gameState.gameBall.x += gameState.gameBall.speedX * deltaTime;
+    gameState.gameBall.y += gameState.gameBall.speedY * deltaTime;
+
+    if (gameState.gameBall.y <= 0 || gameState.gameBall.y >= WINDOW_HEIGHT) {
+        // Reverse the ball's vertical velocity to simulate bouncing
+        gameState.gameBall.speedY = -gameState.gameBall.speedY;
+    }
+
+    if (gameState.gameBall.x <= gameState.player1Paddle.x + gameState.player1Paddle.width &&
+        gameState.gameBall.x >= gameState.player1Paddle.x &&
+        gameState.gameBall.y >= gameState.player1Paddle.y &&
+        gameState.gameBall.y <= gameState.player1Paddle.y + gameState.player1Paddle.height) {
+        // Reverse the ball's horizontal velocity to simulate bouncing off the paddle
+        gameState.gameBall.speedX = -gameState.gameBall.speedX;
+    }
+
+    if (gameState.gameBall.x + gameState.gameBall.radius >= gameState.player2Paddle.x &&
+        gameState.gameBall.x <= gameState.player2Paddle.x + gameState.player2Paddle.width &&
+        gameState.gameBall.y >= gameState.player2Paddle.y &&
+        gameState.gameBall.y <= gameState.player2Paddle.y + gameState.player2Paddle.height) {
+        // Reverse the ball's horizontal velocity to simulate bouncing off the paddle
+        gameState.gameBall.speedX = -gameState.gameBall.speedX;
+    }
+
+    // Reset ball position if it goes out of bounds
+    if (gameState.gameBall.x <= 0 || gameState.gameBall.x >= WINDOW_WIDTH) {
+        gameState.gameBall.x = WINDOW_WIDTH / 2.0f;
+        gameState.gameBall.y = WINDOW_HEIGHT / 2.0f;
+
+        gameState.gameBall.speedX = 200.0f;
+        gameState.gameBall.speedY = 200.0f;
+    }
+}
 
 void render(const GameState& gameState) {
     // Set up view and projection matrices
