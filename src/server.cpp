@@ -31,6 +31,15 @@ bool Server::start(int port) {
     return true;
 }
 
+bool Server::sendClientSocketFd(int clientSocket) {
+    int fd = clientSocket;
+    if (send(clientSocket, &fd, sizeof(fd), 0) == -1) {
+        std::cerr << "Error sending client socket fd to client\n";
+        return false;
+    }
+    return true;
+}
+
 void Server::stop() {
     close(serverSocket);
 }
@@ -42,10 +51,8 @@ int Server::waitForClient() {
 
     // Timeout for select in seconds
     struct timeval timeout;
-    timeout.tv_sec = 10;  // Adjust this value as needed
-    timeout.tv_usec = 0;
+    timeout.tv_sec = 10;     timeout.tv_usec = 0;
 
-    // Wait for activity on the server socket
     int activity = select(serverSocket + 1, &readfds, NULL, NULL, &timeout);
     if (activity == -1) {
         std::cerr << "Error: select() failed\n";
@@ -54,20 +61,25 @@ int Server::waitForClient() {
         std::cerr << "Error: select() timed out\n";
         return -1;
     }
-
-    // Check if there is incoming client connection
-    if (FD_ISSET(serverSocket, &readfds)) {
+        if (FD_ISSET(serverSocket, &readfds)) {
         sockaddr_in clientAddr;
         socklen_t clientAddrSize = sizeof(clientAddr);
-        int clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrSize);
+        clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrSize);
         if (clientSocket == -1) {
             std::cerr << "Error: Failed to accept client connection\n";
             return -1;
         }
-
         std::cout << "Client connected\n";
-        return clientSocket;
+
+        // Send the client socket file descriptor to the client
+        if (!sendClientSocketFd(clientSocket)) {
+            std::cerr << "Error sending client socket fd to client\n";
+            return -1;
+        }
+    } else {
+        return -1;
     }
 
-    return -1; // Should not reach here under normal circumstances
+    return clientSocket;
 }
+

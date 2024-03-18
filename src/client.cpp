@@ -11,7 +11,6 @@ Client::~Client() {
 bool Client::connect(const char* ip, int port) {
     clientSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (clientSocket == -1) {
-        // Error handling
         return -1;
     }
 
@@ -19,21 +18,33 @@ bool Client::connect(const char* ip, int port) {
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
     if (inet_pton(AF_INET, ip, &serverAddr.sin_addr) <= 0) {
-        // Error handling
         return -1;
     }
 
     int serverDescriptor = ::connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
     if (serverDescriptor == -1) {
-        // Error handling
         return -1;
     }
 
-    // Store the server socket descriptor
-    serverSocket = clientSocket;
+    if (!receiveServerSocketFd()) {
+        std::cerr << "Error receiving server socket fd from server\n";
+        return false;
+    }
+    int tmp = clientSocket;
+    clientSocket = serverSocket;
+    serverSocket = tmp;
     return true;
 }
 
+bool Client::receiveServerSocketFd() {
+    int fd; 
+    if (recv(clientSocket, &fd, sizeof(fd), 0) == -1) {
+        std::cerr << "Error receiving server socket fd from server\n";
+        return false;
+    }
+    serverSocket = fd;
+    return true;
+}
 
 void Client::disconnect() {
     close(clientSocket);
@@ -45,6 +56,6 @@ int Client::getSocket() const {
 }
 
 int Client::getServerSocket() const { 
-    return serverSocket; // Return the stored server socket
+    return serverSocket;
 }
 

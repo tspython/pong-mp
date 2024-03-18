@@ -15,7 +15,6 @@ float prevPlayer2PaddleY = 0.0f;
 bool isServer;
 int clientSocket;
 int serverSocket;
-bool initial_run = true;
 
 bool init(bool is_server, int sSocket, int cSocket) {
 	GLFWwindow* window;
@@ -57,25 +56,21 @@ bool init(bool is_server, int sSocket, int cSocket) {
 	initGameState(&gameState);
 
 	while(!glfwWindowShouldClose(window)) {
-		std::cout << "reached game loop" << std::endl;
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		float currentFrame = glfwGetTime();
 		float deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 		
-		if(!initial_run || !isServer) {
-			processInput(window, gameState, deltaTime);
-			updateGameState(gameState, deltaTime);
-		}
+		processInput(window, gameState, deltaTime);
+		updateGameState(gameState, deltaTime);
 
 		render(gameState);
 
 		glfwSwapBuffers(window);
 
 		glfwPollEvents();
-		initial_run = false;
+
 	}
-	std::cout << "reached end ofgame loop" << std::endl;
 	glfwTerminate();
 	return true;
 }
@@ -168,39 +163,30 @@ void drawBall(const Ball& ball, const glm::mat4& view, const glm::mat4& projecti
 void drawScore(float x, float y, unsigned int score){}
 
 void processInput(GLFWwindow* window, GameState& gameState, float deltaTime) {
-	if(isServer) {
-		// Player 1 Input (WASD)
-		float newPlayer1PaddleY = gameState.player1Paddle.y;
+    if (isServer) {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            gameState.player1Paddle.y += gameState.player1Paddle.speed * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            gameState.player1Paddle.y -= gameState.player1Paddle.speed * deltaTime;
 
-		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-			gameState.player1Paddle.y += gameState.player1Paddle.speed * deltaTime;
-		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-			gameState.player1Paddle.y -= gameState.player1Paddle.speed * deltaTime;
+        PaddleMovePacket paddleMovePacket;
+        paddleMovePacket.deltaY = gameState.player1Paddle.y - prevPlayer1PaddleY;
+        prevPlayer1PaddleY = gameState.player1Paddle.y;
 
-		// prepare packet
-		PaddleMovePacket paddleMovePacket;
-		paddleMovePacket.deltaY = gameState.player1Paddle.y - prevPlayer1PaddleY;
-		prevPlayer1PaddleY = newPlayer1PaddleY;
-		
-		sendPaddleMovePacket(clientSocket, paddleMovePacket);
-	}
-	if(!isServer) {
-		// Player 2 Input (ARROWS)
-		float newPlayer2PaddleY = gameState.player2Paddle.y;
+        sendPaddleMovePacket(clientSocket, paddleMovePacket);
+    }
+    if (!isServer) {
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+            gameState.player2Paddle.y += gameState.player2Paddle.speed * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+            gameState.player2Paddle.y -= gameState.player2Paddle.speed * deltaTime;
 
-		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-			gameState.player2Paddle.y += gameState.player2Paddle.speed * deltaTime;
-		if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-			gameState.player2Paddle.y -= gameState.player2Paddle.speed * deltaTime;
-		
-		// prepare packet
-		PaddleMovePacket paddleMovePacket;
-		paddleMovePacket.deltaY = gameState.player2Paddle.y - prevPlayer2PaddleY;
-		prevPlayer2PaddleY = newPlayer2PaddleY;
-		
-		sendPaddleMovePacket(serverSocket, paddleMovePacket);
-	}
+        PaddleMovePacket paddleMovePacket;
+        paddleMovePacket.deltaY = gameState.player2Paddle.y - prevPlayer2PaddleY;
+        prevPlayer2PaddleY = gameState.player2Paddle.y;
 
+        sendPaddleMovePacket(serverSocket, paddleMovePacket);
+    }
 	if (gameState.player1Paddle.y < 0)
 		gameState.player1Paddle.y = 0;
 	else if (gameState.player1Paddle.y > WINDOW_HEIGHT - gameState.player1Paddle.height)
@@ -218,36 +204,31 @@ void updateGameState(GameState& gameState, float deltaTime) {
         gameState.gameBall.y += gameState.gameBall.speedY * deltaTime;
 
         if (gameState.gameBall.y <= 0 || gameState.gameBall.y >= WINDOW_HEIGHT) {
-            // Reverse the ball's vertical velocity to simulate bouncing
-            gameState.gameBall.speedY = -gameState.gameBall.speedY;
+            gameState.gameBall.speedY = -gameState.gameBall.speedY; // Reverse vertical velocity
         }
 
         if (gameState.gameBall.x <= gameState.player1Paddle.x + gameState.player1Paddle.width &&
             gameState.gameBall.x >= gameState.player1Paddle.x &&
-            gameState.gameBall.y >= gameState.player1Paddle.y &&
-            gameState.gameBall.y <= gameState.player1Paddle.y + gameState.player1Paddle.height) {
-            // Reverse the ball's horizontal velocity to simulate bouncing off the paddle
-            gameState.gameBall.speedX = -gameState.gameBall.speedX;
+            gameState.gameBall.y + gameState.gameBall.radius >= gameState.player1Paddle.y &&
+            gameState.gameBall.y - gameState.gameBall.radius <= gameState.player1Paddle.y + gameState.player1Paddle.height) {
+            gameState.gameBall.speedX = -gameState.gameBall.speedX; // Reverse horizontal velocity
         }
 
-        // Receive player 2 paddle movement from the client
         PaddleMovePacket player2Move;
         if (recvPaddleMovePacket(clientSocket, player2Move)) {
-		gameState.player2Paddle.y += player2Move.deltaY;
-	} 
-	else {
-		std::cerr <<  "Error receiving paddle movement from client" << std::endl;
-	}
-
-        if (gameState.gameBall.x + gameState.gameBall.radius >= gameState.player2Paddle.x &&
-            gameState.gameBall.x <= gameState.player2Paddle.x + gameState.player2Paddle.width &&
-            gameState.gameBall.y >= gameState.player2Paddle.y &&
-            gameState.gameBall.y <= gameState.player2Paddle.y + gameState.player2Paddle.height) {
-            // Reverse the ball's horizontal velocity to simulate bouncing off the paddle
-            gameState.gameBall.speedX = -gameState.gameBall.speedX;
+		prevPlayer2PaddleY = gameState.player2Paddle.y;
+            gameState.player2Paddle.y += player2Move.deltaY;
+        } else {
+            std::cerr << "Error receiving paddle movement from client" << std::endl;
         }
 
-        // Reset ball position if it goes out of bounds
+        if (gameState.gameBall.x + gameState.gameBall.radius >= gameState.player2Paddle.x &&
+            gameState.gameBall.x - gameState.gameBall.radius <= gameState.player2Paddle.x + gameState.player2Paddle.width &&
+            gameState.gameBall.y + gameState.gameBall.radius >= gameState.player2Paddle.y &&
+            gameState.gameBall.y - gameState.gameBall.radius <= gameState.player2Paddle.y + gameState.player2Paddle.height) {
+            gameState.gameBall.speedX = -gameState.gameBall.speedX; // Reverse horizontal velocity
+        }
+
         if (gameState.gameBall.x <= 0 || gameState.gameBall.x >= WINDOW_WIDTH) {
             gameState.gameBall.x = WINDOW_WIDTH / 2.0f;
             gameState.gameBall.y = WINDOW_HEIGHT / 2.0f;
@@ -258,22 +239,29 @@ void updateGameState(GameState& gameState, float deltaTime) {
         BallPositionPacket ballPositionPacket;
         ballPositionPacket.x = gameState.gameBall.x;
         ballPositionPacket.y = gameState.gameBall.y;
-        sendPacket(clientSocket, &ballPositionPacket, sizeof(BallPositionPacket));
-    } else {
-	BallPositionPacket ballPositionPacket;
+        sendBallPositionPacket(clientSocket, ballPositionPacket);
+    } 
+ if(!isServer){
+        BallPositionPacket ballPositionPacket;
         if (recvBallPositionPacket(serverSocket, ballPositionPacket)) {
-		gameState.gameBall.x = ballPositionPacket.x;
-		gameState.gameBall.y = ballPositionPacket.y;
-        } 
-	else {
-		std::cerr <<  "Error receiving ball position from server" << std::endl;
+            gameState.gameBall.x = ballPositionPacket.x;
+            gameState.gameBall.y = ballPositionPacket.y;
+        } else {
+            std::cerr << "Error receiving ball position from server" << std::endl;
+        }
 
-	}
+        PaddleMovePacket player1Move;
+        if (recvPaddleMovePacket(serverSocket, player1Move)) {
+		float oldPlayer1PaddleY = gameState.player1Paddle.y;
+		gameState.player1Paddle.y += player1Move.deltaY;
+		prevPlayer1PaddleY = oldPlayer1PaddleY;
+        } else {
+            std::cerr << "Error receiving paddle movement from server" << std::endl;
+        }
     }
 }
 
 void render(const GameState& gameState) {
-	// Set up view and projection matrices
 	glm::mat4 view = glm::mat4(1.0f);
 	glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(WINDOW_WIDTH), 0.0f, static_cast<float>(WINDOW_HEIGHT), -1.0f, 1.0f);
 

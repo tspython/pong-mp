@@ -1,5 +1,3 @@
-// client.h
-
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -8,15 +6,15 @@
 
 class Client {
 private:
-    int clientSocket;
-    int serverSocket; // Add member variable to store server socket
-
+	int clientSocket;
+	int serverSocket; 
 public:
-    Client();
-    ~Client();
-    bool connect(const char* ip, int port);
-    void disconnect();
-    int getSocket() const;
-    int getServerSocket() const;
+	Client();
+	~Client();
+	bool connect(const char* ip, int port);
+	void disconnect();
+	int getSocket() const;
+	int getServerSocket() const;
+	bool receiveServerSocketFd();
 };
-
+ 
