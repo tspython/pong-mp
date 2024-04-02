@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include "game.h"
+#include "networking.h"
 #include "server.h"
 #include "client.h"
 
@@ -51,16 +52,15 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to initialize sockets\n";
         return -1;
     }
-
+    // TODO: Pass in packet queue's to game loop
     if (mode == "server") {
+        PacketQueue *serverPQ = new PacketQueue();
         init(true, serverSocket, clientSocket);
     } 
     else if (mode == "client") {
+        PacketQueue *clientPQ = new PacketQueue();
         init(false, serverSocket, clientSocket);
     }
-
-    // Client remains persistent until explicitly disconnected or program terminates
-    // No need to delete the dynamically allocated client object
 
     return 0;
 }

@@ -86,3 +86,28 @@ bool recvBallPositionPacket(int socket, BallPositionPacket& packet) {
     return false;
 }
 
+// Packet Queue Implentation
+void PacketQueue::enqueuePacket(uint32_t sequenceNum, const std::vector<char>& data) {
+    PacketData packet = { 
+        sequenceNum, 
+        data
+    };
+    
+    receivedPackets[sequenceNum] = packet;
+
+    while(!receivedPackets.empty() && receivedPackets.count(nextExpectedSequenceNum)) {
+        packetQueue.push(receivedPackets[nextExpectedSequenceNum]);
+        receivedPackets.erase(nextExpectedSequenceNum);
+        nextExpectedSequenceNum++;
+    }
+}
+
+bool PacketQueue::hasPacketsAvailable() const {
+    return !packetQueue.empty();
+}
+
+PacketData PacketQueue::getNextPacket() {
+    PacketData packet = packetQueue.front();
+    packetQueue.pop();
+    return packet;
+}
